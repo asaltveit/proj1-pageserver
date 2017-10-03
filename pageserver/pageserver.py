@@ -13,8 +13,10 @@
   program is run).
 """
 
+import os.path
 import config    # Configure from .ini files and command line
 import logging   # Better than print statements
+import webbrowser # To open a file in web browser
 logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -83,20 +85,43 @@ def respond(sock):
     This server responds only to GET requests (not PUT, POST, or UPDATE).
     Any valid GET request is answered with an ascii graphic of a cat.
     """
+    good = False
     sent = 0
     request = sock.recv(1024)  # We accept only short requests
     request = str(request, encoding='utf-8', errors='strict')
     log.info("--- Received request ----")
     log.info("Request was {}\n***\n".format(request))
+    print("Request was {}\n***\n".format(request))
 
     parts = request.split()
     if len(parts) > 1 and parts[0] == "GET":
-        transmit(STATUS_OK, sock)
-        transmit(CAT, sock)
+
+      filename = parts[1]
+
+      """
+      Forbidden format. Function os.path.islink() should check for existence of /../, but /../ always disappears, on my machine, before it can be parsed.
+      """
+      if (os.path.islink(filename) or "~" in filename or not(".html" in filename or ".css" in filename) or filename.startswith("//")):
+        transmit(STATUS_FORBIDDEN, sock)
+        transmit(STATUS_FORBIDDEN, sock)
+        print("has bad format")
+
+      else:
+        try:
+          transmit(STATUS_OK, sock)
+          transmit(spew(filename[1:]), sock)
+          
+          print("spewed")
+
+        except:
+          transmit(STATUS_NOT_FOUND, sock)
+          print("file path doesn't exist")
+
+     
     else:
-        log.info("Unhandled request: {}".format(request))
-        transmit(STATUS_NOT_IMPLEMENTED, sock)
-        transmit("\nI don't handle this request: {}\n".format(request), sock)
+      log.info("Unhandled request: {}".format(request))
+      transmit(STATUS_NOT_IMPLEMENTED, sock)
+      transmit("\nI don't handle this request: {}\n".format(request), sock)
 
     sock.shutdown(socket.SHUT_RDWR)
     sock.close()
@@ -115,22 +140,43 @@ def transmit(msg, sock):
 # Run from command line
 #
 ###
+def spew(file_name):
+    """Spew contents of 'source' to standard output and return it. 
+    Source should be a file or file-like object.
+    From spew folder.
+    """
+    source_path = os.path.join(DOCROOT, file_name)
+    log.debug("Source path: {}".format(source_path))
+    try: 
+        with open(source_path, 'r', encoding='utf-8') as source:
+          data = source.read().strip()
+          return data
 
+
+    except OSError as error:
+        log.warn("Failed to open or read file")
+        log.warn("Requested file was {}".format(source_path))
+        log.warn("Exception: {}".format(error))
+        print("Failed to open or read file")
+        print("Requested file was {}".format(source_path))
+        print("Exception: {}".format(error))
 
 def get_options():
     """
     Options from command line or configuration file.
     Returns namespace object with option value for port
     """
+    global DOCROOT
     # Defaults from configuration files;
     #   on conflict, the last value read has precedence
     options = config.configuration()
     # We want: PORT, DOCROOT, possibly LOGGING
-
+    DOCROOT = options.DOCROOT
     if options.PORT <= 1000:
         log.warning(("Port {} selected. " +
                          " Ports 0..1000 are reserved \n" +
                          "by the operating system").format(options.port))
+
 
     return options
 
