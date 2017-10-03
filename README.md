@@ -4,7 +4,7 @@
 
 A simple webserver that shows .html and .css files, and reports appropriate errors.
 
-##What do I need? Where will it work?##
+## What do I need? Where will it work? ##
 
 Designed for Unix, mostly interoperable on Linux (Ubuntu) or MacOS. Target environment is Raspberry Pi. ** May also work on Windows, but no promises. A Linux virtual machine may work, but our experience has not been good; if you don't have a Raspberry Pi in hand yet, you may want to test on shared server ix-dev.
 
